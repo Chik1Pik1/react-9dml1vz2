@@ -1,35 +1,14 @@
-import React, { useState } from "react";
+import "./styles.css";
 
-function NewsCard({ news }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const toggleExpanded = () => setExpanded(!expanded);
-
-  const formattedDate = news.published_at
-    ? new Date(news.published_at).toLocaleString("ru-RU", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+export default function NewsCard({ news }) {
+  const date = new Date(news.published_at).toLocaleString();
 
   return (
     <div className="news-card">
-      <h3>{news.title}</h3>
-      <small>{formattedDate}</small>
-      <p
-        className={`summary ${expanded ? "expanded" : ""}`}
-        dangerouslySetInnerHTML={{ __html: expanded ? news.summary : `${news.summary.slice(0, 150)}...` }}
-      />
-      {news.summary && news.summary.length > 150 && (
-        <button className="read-more" onClick={toggleExpanded}>
-          {expanded ? "Свернуть" : "Читать полностью"}
-        </button>
-      )}
+      <h2>{news.title}</h2>
+      {news.media_url && <img src={news.media_url} alt="" className="news-image" />}
+      <p className="news-summary">{news.summary}</p>
+      <small className="news-date">{date}</small>
     </div>
   );
 }
-
-export default NewsCard;

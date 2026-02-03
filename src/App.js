@@ -1,52 +1,75 @@
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 import NewsCard from "./NewsCard";
 import "./styles.css";
 
-const SUPABASE_URL = "https://rltppxkgyasyfkftintn.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsdHBweGtneWFzeWZrZnRpbnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTM0NDAsImV4cCI6MjA4NTYyOTQ0MH0.98RP1Ci9UFkjhKbi1woyW5dbRbXJ8qNdopM1aJMSdf4";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 
-function App() {
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Категории, которые будем показывать сверху
+const categories = [
+  { id: "war", name: "Военные" },
+  { id: "economy", name: "Экономика" },
+  { id: "crypto", name: "Крипта" },
+  { id: "society", name: "Общество" },
+];
+
+export default function App() {
   const [news, setNews] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("war");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNews = async () => {
-      try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    async function fetchNews() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("news")
+        .select("*")
+        .eq("category_id", selectedCategory) // фильтр по категории
+        .order("published_at", { ascending: false })
+        .limit(10);
 
-        const { data, error } = await supabase
-          .from("news")
-          .select("*")
-          .order("published_at", { ascending: false })
-          .limit(50);
-
-        if (error) throw error;
+      if (error) {
+        console.error("Ошибка при получении новостей:", error);
+      } else {
         setNews(data);
-      } catch (err) {
-        console.error("Ошибка при загрузке новостей:", err.message);
-      } finally {
-        setLoading(false);
       }
-    };
+      setLoading(false);
+    }
 
     fetchNews();
-  }, []);
+  }, [selectedCategory]);
 
   return (
-    <div className="app">
-      <h1>📰 Лента новостей</h1>
+    <div className="app-container">
+      <h1>📰 Новости российских СМИ</h1>
+
+      {/* Категории */}
+      <div className="categories">
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            className={`category-btn ${selectedCategory === cat.id ? "active" : ""}`}
+            onClick={() => setSelectedCategory(cat.id)}
+          >
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
-        <p className="loading">Загрузка новостей...</p>
+        <div className="loading">Загрузка новостей...</div>
       ) : (
         <div className="news-list">
-          {news.map((item) => (
-            <NewsCard key={item.id} news={item} />
-          ))}
+          {news.length > 0 ? (
+            news.map((item) => <NewsCard key={item.id} news={item} />)
+          ) : (
+            <div className="no-news">Новости не найдены</div>
+          )}
         </div>
       )}
     </div>
   );
 }
-
-export default App;
