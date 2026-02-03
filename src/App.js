@@ -1,77 +1,93 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import NewsCard from "./NewsCard";
 import "./styles.css";
 
-// ✅ Подставляем Supabase данные
+// Подставляем твои ключи
 const SUPABASE_URL = "https://rltppxkgyasyfkftintn.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsdHBweGtneWFzeWZrZnRpbnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTM0NDAsImV4cCI6MjA4NTYyOTQ0MH0.98RP1Ci9UFkjhKbi1woyW5dbRbXJ8qNdopM1aJMSdf4";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsdHBweGtneWFzeWZrZnRpbnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTM0NDAsImV4cCI6MjA4NTYyOTQ0MH0.98RP1Ci9UFkjhKbi1woyW5dbRbXJ8qNdopM1aJMSdf4";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Категории новостей
-const categories = [
-  { id: "war", name: "Военные" },
-  { id: "economy", name: "Экономика" },
-  { id: "crypto", name: "Крипта" },
-  { id: "society", name: "Общество" },
-];
-
-export default function App() {
+function App() {
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [news, setNews] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState("war");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
+  // Получаем категории
   useEffect(() => {
+    async function fetchCategories() {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, title")
+        .order("title");
+      if (error) {
+        console.error("Ошибка при получении категорий:", error);
+      } else {
+        setCategories(data);
+        if (data.length > 0) setSelectedCategory(data[0].id); // Выбираем первую категорию
+      }
+    }
+    fetchCategories();
+  }, []);
+
+  // Получаем новости для выбранной категории
+  useEffect(() => {
+    if (!selectedCategory) return;
+
     async function fetchNews() {
       setLoading(true);
       const { data, error } = await supabase
         .from("news")
         .select("*")
-        .eq("category_id", selectedCategory) // фильтруем по категории
+        .eq("category_id", selectedCategory)
         .order("published_at", { ascending: false })
         .limit(10);
+      setLoading(false);
 
       if (error) {
         console.error("Ошибка при получении новостей:", error);
       } else {
         setNews(data);
       }
-      setLoading(false);
     }
-
     fetchNews();
   }, [selectedCategory]);
 
   return (
-    <div className="app-container">
-      <h1>📰 Новости российских СМИ</h1>
+    <div className="app">
+      <h1>📰 Новости</h1>
 
-      {/* Категории */}
       <div className="categories">
         {categories.map((cat) => (
           <button
             key={cat.id}
-            className={`category-btn ${selectedCategory === cat.id ? "active" : ""}`}
+            className={cat.id === selectedCategory ? "active" : ""}
             onClick={() => setSelectedCategory(cat.id)}
           >
-            {cat.name}
+            {cat.title}
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="loading">Загрузка новостей...</div>
-      ) : (
-        <div className="news-list">
-          {news.length > 0 ? (
-            news.map((item) => <NewsCard key={item.id} news={item} />)
-          ) : (
-            <div className="no-news">Новости не найдены</div>
-          )}
-        </div>
-      )}
+      {loading && <p>Загрузка новостей...</p>}
+
+      <div className="news-list">
+        {news.map((item) => (
+          <div key={item.id} className="news-card">
+            <h3>{item.title}</h3>
+            <p>{item.summary || item.full_text || "Нет текста"}</p>
+            <small>
+              {item.published_at
+                ? new Date(item.published_at).toLocaleString()
+                : ""}
+            </small>
+          </div>
+        ))}
+        {news.length === 0 && !loading && <p>Нет новостей в этой категории</p>}
+      </div>
     </div>
   );
 }
+
+export default App;
