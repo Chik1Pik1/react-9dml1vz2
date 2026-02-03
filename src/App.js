@@ -1,93 +1,99 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import NewCard from "./NewCard";
 import "./styles.css";
 
 // Подставляем твои ключи
 const SUPABASE_URL = "https://rltppxkgyasyfkftintn.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsdHBweGtneWFzeWZrZnRpbnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTM0NDAsImV4cCI6MjA4NTYyOTQ0MH0.98RP1Ci9UFkjhKbi1woyW5dbRbXJ8qNdopM1aJMSdf4";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsdHBweGtneWFzeWZrZnRpbnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTM0NDAsImV4cCI6MjA4NTYyOTQ0MH0.98RP1Ci9UFkjhKbi1woyW5dbRbXJ8qNdopM1aJMSdf4";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-function App() {
+export default function App() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Получаем категории
+  // Загружаем категории
   useEffect(() => {
-    async function fetchCategories() {
+    const fetchCategories = async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("id, title")
-        .order("title");
+        .select("id, slug, title")
+        .order("title", { ascending: true });
+
       if (error) {
-        console.error("Ошибка при получении категорий:", error);
+        console.error("Ошибка загрузки категорий:", error);
       } else {
         setCategories(data);
-        if (data.length > 0) setSelectedCategory(data[0].id); // Выбираем первую категорию
+        if (data.length > 0) setSelectedCategory(data[0].slug);
       }
-    }
+    };
+
     fetchCategories();
   }, []);
 
-  // Получаем новости для выбранной категории
+  // Загружаем новости при смене категории
   useEffect(() => {
     if (!selectedCategory) return;
 
-    async function fetchNews() {
+    const fetchNews = async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("news")
-        .select("*")
+        .select("id, title, summary, media_url, published_at")
         .eq("category_id", selectedCategory)
         .order("published_at", { ascending: false })
-        .limit(10);
-      setLoading(false);
+        .limit(10); // последние 10 новостей
 
       if (error) {
-        console.error("Ошибка при получении новостей:", error);
+        console.error("Ошибка загрузки новостей:", error);
       } else {
         setNews(data);
       }
-    }
+      setLoading(false);
+    };
+
     fetchNews();
   }, [selectedCategory]);
 
   return (
-    <div className="app">
-      <h1>📰 Новости</h1>
+    <div className="app-container">
+      <h1>📰 Новости по категориям</h1>
 
       <div className="categories">
         {categories.map((cat) => (
           <button
             key={cat.id}
-            className={cat.id === selectedCategory ? "active" : ""}
-            onClick={() => setSelectedCategory(cat.id)}
+            className={`category-btn ${
+              selectedCategory === cat.slug ? "active" : ""
+            }`}
+            onClick={() => setSelectedCategory(cat.slug)}
           >
             {cat.title}
           </button>
         ))}
       </div>
 
-      {loading && <p>Загрузка новостей...</p>}
-
-      <div className="news-list">
-        {news.map((item) => (
-          <div key={item.id} className="news-card">
-            <h3>{item.title}</h3>
-            <p>{item.summary || item.full_text || "Нет текста"}</p>
-            <small>
-              {item.published_at
-                ? new Date(item.published_at).toLocaleString()
-                : ""}
-            </small>
-          </div>
-        ))}
-        {news.length === 0 && !loading && <p>Нет новостей в этой категории</p>}
-      </div>
+      {loading ? (
+        <p>Загрузка новостей...</p>
+      ) : news.length === 0 ? (
+        <p>Новости отсутствуют в этой категории.</p>
+      ) : (
+        <div className="news-list">
+          {news.map((item) => (
+            <NewCard
+              key={item.id}
+              title={item.title}
+              text={item.summary || "Нет текста"}
+              media_url={item.media_url}
+              published_at={item.published_at}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-
-export default App;
